@@ -1,4 +1,4 @@
-This is a sample project where I'll explore and learn a bit about ESP32, CYD, LVG_L, MQTT, and whatever else I can come up with.
+This is a sample project where I'll explore and learn a bit about ESP32, CYD, LVG_L, MQTT, and whatever else I can come up with. It is set up to use [PlatformIO](https://platformio.org). 
 
 There is Docker Compose file in utils/mosquitto that will spin up an instance of the [Mosquitto MQTT broker](https://mosquitto.org).
 
