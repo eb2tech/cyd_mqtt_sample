@@ -31,10 +31,7 @@ void setup_wifi() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  String message;
-  for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
+  String message(payload, length);
 
   // Display the message
   tft.fillScreen(TFT_BLACK);
