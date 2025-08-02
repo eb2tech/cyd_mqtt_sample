@@ -2,3 +2,7 @@
 .vscode
 
 include/secrets.h
+
+utils/mosquitto/config/pwfile
+utils/mosquitto/data
+utils/mosquitto/log

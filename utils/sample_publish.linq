@@ -17,7 +17,7 @@ using (var mqttClient = mqttFactory.CreateMqttClient())
 
 	var applicationMessage = new MqttApplicationMessageBuilder()
 		.WithTopic("home/livingroom/temperature")
-		.WithPayload("56.4")
+		.WithPayload("88.7")
 		.Build();
 
 	await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
