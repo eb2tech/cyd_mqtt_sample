@@ -75,6 +75,7 @@ void setup() {
   client.setCallback(callback);
 
   tft.println("Connected");
+  tft.println("Awaiting messages...");
 }
 
 void loop() {
