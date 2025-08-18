@@ -9,12 +9,13 @@ var rnd = new Random();
 
 using var mqttClient = mqttFactory.CreateMqttClient();
 var mqttClientOptions = new MqttClientOptionsBuilder()
-								.WithTcpServer("192.168.1.92")
+								.WithTcpServer("homeassistant2.local")
 								.WithClientId("Linqpad")
 								.WithCredentials("cyd", "cyd")
 								.Build();
 
 await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
+Console.WriteLine("Connected...");
 
 for (var i = 0; i < 100; ++i)
 {
@@ -24,6 +25,7 @@ for (var i = 0; i < 100; ++i)
 		.Build();
 	
 	await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
+	Console.WriteLine("Published...");
 
 	await Task.Delay(TimeSpan.FromSeconds(1));
 }
@@ -37,4 +39,4 @@ await mqttClient.PublishAsync(easterEggMessage, CancellationToken.None);
 
 await mqttClient.DisconnectAsync();
 
-Console.WriteLine("MQTT application message is published.");
+Console.WriteLine("MQTT application messages published.");
