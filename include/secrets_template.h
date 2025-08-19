@@ -6,3 +6,4 @@
 #define MQTT_USER "Your MQTT Username"
 #define MQTT_PASSWORD "Your MQTT Password"
 #define MQTT_BROKER_IP "Your MQTT Broker IP"
+#define MDNS_HOSTNAME "Your mDNS Hostname"

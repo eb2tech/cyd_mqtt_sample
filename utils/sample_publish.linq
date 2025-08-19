@@ -9,7 +9,7 @@ var rnd = new Random();
 
 using var mqttClient = mqttFactory.CreateMqttClient();
 var mqttClientOptions = new MqttClientOptionsBuilder()
-								.WithTcpServer("homeassistant2.local")
+								.WithTcpServer("pimqtt.local")
 								.WithClientId("Linqpad")
 								.WithCredentials("cyd", "cyd")
 								.Build();

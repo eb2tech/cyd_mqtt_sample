@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <TFT_eSPI.h>
+#include <ESPmDNS.h>
 #include "secrets.h"
 
 // WiFi credentials
@@ -20,6 +21,8 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 void setup_wifi() {
+  tft.println("Connecting to WiFi...");
+
   delay(10);
   WiFi.begin(ssid, password);
   Serial.println("Connecting to WiFi...");
@@ -27,7 +30,17 @@ void setup_wifi() {
     delay(1000);
     Serial.println("  Connecting...");
   }
-  Serial.println("Connected to WiFi");
+  Serial.println("Connected to WiFi: " + WiFi.localIP().toString());
+  tft.println("Connected");
+}
+
+void setup_mdns() {
+  Serial.println("Setting up mDNS responder...");
+  while (!MDNS.begin(MDNS_HOSTNAME)) {
+    Serial.println("Error setting up MDNS responder...");
+    delay(1000);
+  }
+  Serial.println("mDNS responder started");
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -68,13 +81,12 @@ void setup() {
   tft.setTextColor(TFT_WHITE);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.println("Connecting...");
 
   setup_wifi();
+  setup_mdns();
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
-  tft.println("Connected");
   tft.println("Awaiting messages...");
 }
 
