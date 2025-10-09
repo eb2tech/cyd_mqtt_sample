@@ -19,15 +19,16 @@ Console.WriteLine("Connected...");
 
 for (var i = 0; i < 100; ++i)
 {
+	var temp = rnd.Next(-100, 100);
 	var applicationMessage = new MqttApplicationMessageBuilder()
 		.WithTopic("home/livingroom/temperature")
-		.WithPayload(rnd.Next(-100, 100).ToString())
+		.WithPayload(temp.ToString())
 		.Build();
 	
 	await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
-	Console.WriteLine("Published...");
+	Console.WriteLine("Published..." + temp);
 
-	await Task.Delay(TimeSpan.FromSeconds(1));
+	await Task.Delay(TimeSpan.FromSeconds(rnd.NextSingle()));
 }
 
 var easterEggMessage = new MqttApplicationMessageBuilder()
