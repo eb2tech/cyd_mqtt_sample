@@ -7,3 +7,4 @@ utils/mosquitto/config/pwfile
 utils/mosquitto/data
 utils/mosquitto/log
 cyd-mqtt.eez-project-ui-state
+/.vs
