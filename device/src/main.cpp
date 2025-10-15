@@ -18,17 +18,17 @@
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 
-// MQTT broker
-const char* mqtt_server = MQTT_BROKER_IP;
-const int mqtt_port = 1883;
+// MQTT broker - will be discovered via mDNS
+String mqtt_server = "";  // Will be set by mDNS discovery
+int mqtt_port = 1883;     // Will be set by mDNS discovery  
+bool mqtt_broker_found = false;
 const char* mqtt_topic = "home/livingroom/temperature";
 
 // Display
 // Display configuration - matches EEZ Studio project settings
 static const uint16_t screenWidth = 320;
 static const uint16_t screenHeight = 240;
-static lv_color_t buf1[screenWidth * 40]; // 40 lines buffer for faster refresh
-static lv_color_t buf2[screenWidth * 40]; // Second buffer for double buffering
+static lv_color_t buf1[screenWidth * 20]; // 20 lines buffer (20 horizontal rows)
 
 TFT_eSPI tft = TFT_eSPI();  // Uses settings from User_Setup.h
 
@@ -76,6 +76,36 @@ void setup_mdns() {
   Serial.println("mDNS responder started");
 }
 
+bool discover_mqtt_broker() {
+  Serial.println("Discovering MQTT broker via mDNS...");
+  lv_label_set_text(objects.label_mqtt_connection_state, "Discovering broker...");
+  
+  // Query for MQTT service
+  int n = MDNS.queryService("mqtt", "tcp");
+  if (n == 0) {
+    Serial.println("No MQTT services found");
+    return false;
+  } else {
+    Serial.printf("Found %d MQTT service(s)\n", n);
+    for (int i = 0; i < n; ++i) {
+      Serial.printf("  %d: %s.local:%d\n", i, MDNS.hostname(i).c_str(), MDNS.port(i));
+      
+      // Use the first MQTT service found
+      if (i == 0) {
+        mqtt_server = MDNS.IP(i).toString();  // Get IP address
+        mqtt_port = MDNS.port(i);
+        mqtt_broker_found = true;
+        
+        Serial.printf("Using MQTT broker: %s:%d\n", mqtt_server.c_str(), mqtt_port);
+        String status = "Found: " + mqtt_server + ":" + String(mqtt_port);
+        lv_label_set_text(objects.label_mqtt_connection_state, status.c_str());
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
   String message(payload, length);
   message = message + "°C";
@@ -87,6 +117,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void reconnect() {
+  if (!mqtt_broker_found) {
+    Serial.println("No MQTT broker discovered - attempting discovery again...");
+    if (!discover_mqtt_broker()) {
+      delay(5000);  // Wait before trying discovery again
+      return;
+    }
+    // Reconfigure client with newly discovered broker
+    client.setServer(mqtt_server.c_str(), mqtt_port);
+    client.setCallback(callback);
+  }
+  
   Serial.println("Reconnecting to MQTT...");
 
   while (!client.connected()) {
@@ -94,7 +135,7 @@ void reconnect() {
       client.subscribe(mqtt_topic);
     } else {
       Serial.println("Failed to connect, retrying...");
-      lv_label_set_text(objects.label_mqtt_connection_state, "Not connected");
+      lv_label_set_text(objects.label_mqtt_connection_state, "Connection failed");
       delay(5000);
     }
   }
@@ -125,8 +166,8 @@ void setup() {
   // Create display (LVGL 9.x API)
   lv_display_t *display = lv_display_create(screenWidth, screenHeight);
   
-  // Set display buffer with double buffering for smoother refresh
-  lv_display_set_buffers(display, buf1, buf2, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
+  // Set display buffer with single buffering to save memory
+  lv_display_set_buffers(display, buf1, NULL, sizeof(buf1), LV_DISPLAY_RENDER_MODE_PARTIAL);
   
   // Set display flush callback
   lv_display_set_flush_cb(display, display_flush);
@@ -141,8 +182,16 @@ void setup() {
 
   setup_wifi();
   setup_mdns();
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
+  
+  // Discover MQTT broker via mDNS
+  if (discover_mqtt_broker()) {
+    client.setServer(mqtt_server.c_str(), mqtt_port);
+    client.setCallback(callback);
+    Serial.println("MQTT client configured with discovered broker");
+  } else {
+    Serial.println("Failed to discover MQTT broker - check mDNS service");
+    lv_label_set_text(objects.label_mqtt_connection_state, "Broker not found");
+  }
 
   Serial.println("Awaiting messages...");
 }
@@ -160,8 +209,22 @@ void loop() {
   // Small delay to prevent watchdog issues - reduced for faster refresh
   delay(3);
 
-  if (!client.connected()) {
-    reconnect();
+  // Only try MQTT operations if we have a broker
+  if (mqtt_broker_found) {
+    if (!client.connected()) {
+      reconnect();
+    }
+    client.loop();
+  } else {
+    // Periodically retry mDNS discovery
+    static unsigned long lastDiscoveryAttempt = 0;
+    if (millis() - lastDiscoveryAttempt > 10000) {  // Try every 10 seconds
+      lastDiscoveryAttempt = millis();
+      discover_mqtt_broker();
+      if (mqtt_broker_found) {
+        client.setServer(mqtt_server.c_str(), mqtt_port);
+        client.setCallback(callback);
+      }
+    }
   }
-  client.loop();
 }
