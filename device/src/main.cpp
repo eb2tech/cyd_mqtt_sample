@@ -35,6 +35,37 @@ TFT_eSPI tft = TFT_eSPI(); // Uses settings from User_Setup.h
 WiFiClient espClient;
 PubSubClient client(espClient);
 
+// Device identification functions
+String getDeviceIdentifier()
+{
+  // Use MAC address as serial number (most common approach)
+  return WiFi.macAddress();
+}
+
+uint64_t getChipId()
+{
+  return ESP.getEfuseMac();
+}
+
+String getChipIdString()
+{
+  uint64_t chipid = ESP.getEfuseMac();
+  return String((uint32_t)(chipid >> 32), HEX) + String((uint32_t)chipid, HEX);
+}
+
+void printDeviceInfo()
+{
+  Serial.println("=== Device Information ===");
+  Serial.println("MAC Address (Serial): " + getDeviceIdentifier());
+  Serial.println("Chip ID: " + getChipIdString());
+  Serial.println("Chip Model: " + String(ESP.getChipModel()));
+  Serial.println("Chip Revision: " + String(ESP.getChipRevision()));
+  Serial.println("Flash Size: " + String(ESP.getFlashChipSize() / 1024 / 1024) + " MB");
+  Serial.println("Heap Size: " + String(ESP.getHeapSize()) + " bytes");
+  Serial.println("Free Heap: " + String(ESP.getFreeHeap()) + " bytes");
+  Serial.println("==========================");
+}
+
 // LVGL log callback
 void log_print(lv_log_level_t level, const char *buf)
 {
@@ -165,6 +196,22 @@ void reconnect()
   lv_label_set_text(objects.label_mqtt_connection_state, "Connected");
 }
 
+void setup_mqtt()
+{
+  // Discover MQTT broker via mDNS
+  if (discover_mqtt_broker())
+  {
+    client.setServer(mqtt_server.c_str(), mqtt_port);
+    client.setCallback(callback);
+    Serial.println("MQTT client configured with discovered broker");
+  }
+  else
+  {
+    Serial.println("Failed to discover MQTT broker - check mDNS service");
+    lv_label_set_text(objects.label_mqtt_connection_state, "Broker not found");
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -175,11 +222,12 @@ void setup()
 
   Serial.println("In setup()");
 
+  // Print device information
+  printDeviceInfo();
+
   // Initialize TFT
   tft.init();
   tft.setRotation(2);
-  // pinMode(LCD_BACKLIGHT_PIN, OUTPUT);
-  // digitalWrite(LCD_BACKLIGHT_PIN, HIGH); // Turn on backlight
 
   // Initialize LVGL
   lv_init();
@@ -204,19 +252,7 @@ void setup()
 
   setup_wifi();
   setup_mdns();
-
-  // Discover MQTT broker via mDNS
-  if (discover_mqtt_broker())
-  {
-    client.setServer(mqtt_server.c_str(), mqtt_port);
-    client.setCallback(callback);
-    Serial.println("MQTT client configured with discovered broker");
-  }
-  else
-  {
-    Serial.println("Failed to discover MQTT broker - check mDNS service");
-    lv_label_set_text(objects.label_mqtt_connection_state, "Broker not found");
-  }
+  setup_mqtt();
 
   Serial.println("Awaiting messages...");
 }
