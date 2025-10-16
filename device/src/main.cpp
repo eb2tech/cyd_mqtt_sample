@@ -116,6 +116,41 @@ void setup_mdns()
   Serial.println("mDNS responder started");
 }
 
+// Helper function to parse chunked HTTP response
+String parseChunkedResponse(String chunkedData)
+{
+  String result = "";
+  int pos = 0;
+  
+  while (pos < chunkedData.length())
+  {
+    // Find the chunk size (hex number before \r\n)
+    int crlfPos = chunkedData.indexOf('\n', pos);
+    if (crlfPos == -1) break;
+    
+    String chunkSizeStr = chunkedData.substring(pos, crlfPos);
+    chunkSizeStr.trim(); // Remove \r and whitespace
+    
+    // Convert hex chunk size to integer
+    long chunkSize = strtol(chunkSizeStr.c_str(), nullptr, 16);
+    
+    if (chunkSize == 0) break; // End of chunks
+    
+    // Extract the chunk data
+    pos = crlfPos + 1;
+    if (pos + chunkSize > chunkedData.length()) break;
+    
+    result += chunkedData.substring(pos, pos + chunkSize);
+    pos += chunkSize;
+    
+    // Skip the trailing \r\n after chunk data
+    if (pos < chunkedData.length() && chunkedData.charAt(pos) == '\r') pos++;
+    if (pos < chunkedData.length() && chunkedData.charAt(pos) == '\n') pos++;
+  }
+  
+  return result;
+}
+
 bool discover_mqtt_broker()
 {
   Serial.println("Discovering provisioning service via mDNS...");
@@ -152,13 +187,9 @@ bool discover_mqtt_broker()
   JsonDocument requestDoc;
   requestDoc["device_id"] = getDeviceIdentifier();
   requestDoc["device_type"] = "cyd-esp32";
-  requestDoc["mac_address"] = getChipIdString;
+  requestDoc["mac_address"] = getChipIdString();
   requestDoc["request_type"] = "mqtt_config";
   
-  // TODO: Add additional device info as needed
-  // requestDoc["firmware_version"] = "1.0.0";
-  // requestDoc["capabilities"] = JsonArray(["display", "touch", "wifi"]);
-
   String requestJson;
   serializeJson(requestDoc, requestJson);
   
@@ -187,23 +218,66 @@ bool discover_mqtt_broker()
     return false;
   }
 
-  // Read HTTP response headers (skip them)
-  String line;
-  bool headersEnded = false;
-  while (provisionClient.available() && !headersEnded)
+  // Read complete HTTP response
+  String fullResponse = "";
+  while (provisionClient.available())
   {
-    line = provisionClient.readStringUntil('\n');
-    if (line == "\r")
+    fullResponse += provisionClient.readString();
+    delay(10); // Small delay to ensure all data is received
+  }
+  provisionClient.stop();
+
+  Serial.println("Full HTTP response:");
+  Serial.println(fullResponse);
+
+  // Find the JSON body (after the double CRLF that ends headers)
+  String responseJson = "";
+  int bodyStart = fullResponse.indexOf("\r\n\r\n");
+  if (bodyStart != -1)
+  {
+    responseJson = fullResponse.substring(bodyStart + 4);
+  }
+  else
+  {
+    // Try alternative line endings
+    bodyStart = fullResponse.indexOf("\n\n");
+    if (bodyStart != -1)
     {
-      headersEnded = true;
+      responseJson = fullResponse.substring(bodyStart + 2);
+    }
+    else
+    {
+      Serial.println("Could not find HTTP body separator");
+      lv_label_set_text(objects.label_mqtt_connection_state, "Invalid HTTP response");
+      return false;
     }
   }
 
-  // Read JSON response body
-  String responseJson = provisionClient.readString();
-  provisionClient.stop();
+  // Handle chunked encoding - remove chunk size indicators
+  if (fullResponse.indexOf("Transfer-Encoding: chunked") != -1)
+  {
+    Serial.println("Handling chunked response");
+    responseJson = parseChunkedResponse(responseJson);
+  }
 
-  Serial.println("Provisioning response: " + responseJson);
+  // Clean up any remaining whitespace or control characters
+  responseJson.trim();
+
+  Serial.println("Extracted JSON response:");
+  Serial.println("Length: " + String(responseJson.length()));
+  Serial.println("Content: " + responseJson);
+  
+  // Additional cleanup - remove any non-printable characters at start/end
+  while (responseJson.length() > 0 && (responseJson.charAt(0) < 32 || responseJson.charAt(0) > 126))
+  {
+    responseJson = responseJson.substring(1);
+  }
+  while (responseJson.length() > 0 && (responseJson.charAt(responseJson.length()-1) < 32))
+  {
+    responseJson = responseJson.substring(0, responseJson.length()-1);
+  }
+  
+  Serial.println("Cleaned JSON: " + responseJson);
 
   // Parse JSON response
   JsonDocument responseDoc;

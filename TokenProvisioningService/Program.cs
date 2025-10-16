@@ -75,7 +75,6 @@ app.MapPost("/provision", async (HttpContext context, ITokenService tokenService
         var response = new
                        {
                            status = "success",
-                           token,
                            mqtt_broker = mqttOptions.Value.Host,
                            mqtt_port = mqttOptions.Value.Port,
                            mqtt_username = "cyd",

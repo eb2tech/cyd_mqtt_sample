@@ -1,5 +1,5 @@
 ### Valid provisioning request
-POST http://localhost:5000/provision
+POST http://localhost:12345/provision
 Content-Type: application/json
 
 {
@@ -10,7 +10,7 @@ Content-Type: application/json
 }
 
 ### Missing required fields (expected 400)
-POST http://localhost:5000/provision
+POST http://localhost:12345/provision
 Content-Type: application/json
 
 {
@@ -21,7 +21,7 @@ Content-Type: application/json
 }
 
 ### Unsupported request_type (expected 406)
-POST http://localhost:5000/provision
+POST http://localhost:12345/provision
 Content-Type: application/json
 
 {
@@ -32,7 +32,7 @@ Content-Type: application/json
 }
 
 ### Invalid JSON (expected 400)
-POST http://localhost:5000/provision
+POST http://localhost:12345/provision
 Content-Type: application/json
 
 { "device_id": "device-003", 
