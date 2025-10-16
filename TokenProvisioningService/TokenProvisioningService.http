@@ -40,9 +40,3 @@ Content-Type: application/json
   "mac_address": "00:11:22:33:44:55", 
   "reques_type": "mqtt_config"
 }
-
-### curl example (valid request)
-# Run this from a terminal (adjust port/host if your app binds elsewhere)
-# curl -v -X POST http://localhost:5000/provision \
-#   -H "Content-Type: application/json" \
-#   -d '{"device_id":"device-001","device_type":"cyd-esp32","mac_address":"AA:BB:CC:DD:EE:FF","request_type":"mqtt_config"}'

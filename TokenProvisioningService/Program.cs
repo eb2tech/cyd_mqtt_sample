@@ -1,22 +1,4 @@
-﻿/*
-  Token Provisioning Service for CYD MQTT Devices
-  -----------------------------------------------
-  This service runs on a Raspberry Pi and listens for UDP requests from CYD devices.
-  Each request includes a UUID that identifies the device.
-
-  Responsibilities:
-  - Validate incoming UUIDs
-  - Generate short-lived JWT tokens for MQTT authentication
-  - Store token metadata in LiteDB
-  - Respond with token and broker info
-  - Optionally log onboarding events
-
-  Future:
-  - Integrate with Mosquitto plugin for token validation
-  - Add mDNS responder for broker discovery
-*/
-
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
 using TokenProvisioningService;
 
@@ -60,7 +42,7 @@ app.MapPost("/provision", async (HttpContext context, ITokenService tokenService
         {
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
             await context.Response.WriteAsJsonAsync(
-                new { status = "error", error = "Missing required fields: device_id and uuid" },
+                new { status = "error", error = "Missing required fields: device_id, device_type, mac_address, and request_type" },
                 context.RequestAborted);
             return;
         }
@@ -70,6 +52,7 @@ app.MapPost("/provision", async (HttpContext context, ITokenService tokenService
             context.Response.StatusCode = StatusCodes.Status406NotAcceptable;
             await context.Response.WriteAsJsonAsync(new { status = "error", error = "Unsupported request_type" },
                                                     context.RequestAborted);
+            return;
         }
 
         logger.LogDebug("Provision request {Request} for device {DeviceId} mac {MacAddress} type {DeviceType}",
