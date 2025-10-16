@@ -1,0 +1,50 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# All files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# C++ files
+[*.{cpp,c,h,hpp}]
+indent_style = space
+indent_size = 2
+# Allman style braces (not K&R)
+# Braces on new lines, aligned with control statements
+cpp_new_line_before_open_brace_namespace = new_line
+cpp_new_line_before_open_brace_type = new_line
+cpp_new_line_before_open_brace_function = new_line
+cpp_new_line_before_open_brace_control_block = new_line
+cpp_new_line_before_open_brace_lambda = new_line
+cpp_new_line_before_else = true
+cpp_new_line_before_catch = true
+cpp_new_line_before_finally = true
+
+# Python files
+[*.py]
+indent_style = space
+indent_size = 4
+
+# JavaScript/TypeScript files
+[*.{js,ts,json}]
+indent_style = space
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Makefile
+[Makefile]
+indent_style = tab
+
+# PlatformIO configuration
+[platformio.ini]
+indent_style = space
+indent_size = 4

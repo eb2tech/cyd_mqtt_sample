@@ -5,3 +5,7 @@
 .vscode/ipch
 include/secrets.h
 utils/mosquitto/log
+
+# Ignore obj directories at any level
+**/obj/
+**/bin/
