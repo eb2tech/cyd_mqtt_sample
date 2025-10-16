@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 namespace TokenProvisioningService;
 
@@ -14,10 +13,10 @@ public class TokenService(ILogger<TokenService> logger, IOptions<TokenProvisioni
         
         // TODO: Implement JWT token generation
         await Task.CompletedTask;
-        return "placeholder-token";
+        return "cyd";
     }
 
-    public async Task<bool> ValidateDeviceAsync(string uuid)
+    public async Task<bool> ValidateDeviceAsync(string uuid, string deviceType)
     {
         logger.LogDebug("Validating device with UUID {UUID}", uuid);
         

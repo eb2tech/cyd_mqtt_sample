@@ -3,5 +3,5 @@
 public interface ITokenService
 {
     Task<string> GenerateTokenAsync(string deviceId, string uuid);
-    Task<bool> ValidateDeviceAsync(string uuid);
+    Task<bool> ValidateDeviceAsync(string uuid, string deviceType);
 }

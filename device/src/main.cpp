@@ -3,6 +3,7 @@
 #include <PubSubClient.h>
 #include <TFT_eSPI.h>
 #include <ESPmDNS.h>
+#include <ArduinoJson.h>
 #include <lvgl.h>
 #include "ui/ui.h"
 #include "secrets.h"
@@ -18,9 +19,11 @@
 const char *ssid = WIFI_SSID;
 const char *password = WIFI_PASSWORD;
 
-// MQTT broker - will be discovered via mDNS
-String mqtt_server = ""; // Will be set by mDNS discovery
-int mqtt_port = 1883;    // Will be set by mDNS discovery
+// MQTT broker - will be discovered via provisioning service
+String mqtt_server = ""; // Will be set by provisioning service
+int mqtt_port = 1883;    // Will be set by provisioning service
+String mqtt_username = ""; // Will be set by provisioning service
+String mqtt_password = ""; // Will be set by provisioning service
 bool mqtt_broker_found = false;
 const char *mqtt_topic = "home/livingroom/temperature";
 
@@ -115,38 +118,128 @@ void setup_mdns()
 
 bool discover_mqtt_broker()
 {
-  Serial.println("Discovering MQTT broker via mDNS...");
-  lv_label_set_text(objects.label_mqtt_connection_state, "Discovering broker...");
+  Serial.println("Discovering provisioning service via mDNS...");
+  lv_label_set_text(objects.label_mqtt_connection_state, "Finding provisioning...");
 
-  // Query for MQTT service
-  int n = MDNS.queryService("mqtt", "tcp");
+  // Query for CYD provisioning service
+  int n = MDNS.queryService("cyd-provision", "tcp");
   if (n == 0)
   {
-    Serial.println("No MQTT services found");
+    Serial.println("No CYD provisioning services found");
+    lv_label_set_text(objects.label_mqtt_connection_state, "No provisioning service");
     return false;
+  }
+
+  Serial.printf("Found %d provisioning service(s)\n", n);
+  
+  // Use the first provisioning service found
+  String provisionIP = MDNS.IP(0).toString();
+  int provisionPort = MDNS.port(0);
+  
+  Serial.printf("Contacting provisioning service: %s:%d\n", provisionIP.c_str(), provisionPort);
+  lv_label_set_text(objects.label_mqtt_connection_state, "Contacting provisioning...");
+
+  // Connect to provisioning service via TCP
+  WiFiClient provisionClient;
+  if (!provisionClient.connect(provisionIP.c_str(), provisionPort))
+  {
+    Serial.println("Failed to connect to provisioning service");
+    lv_label_set_text(objects.label_mqtt_connection_state, "Provisioning failed");
+    return false;
+  }
+
+  // Create provisioning request JSON
+  JsonDocument requestDoc;
+  requestDoc["device_id"] = getDeviceIdentifier();
+  requestDoc["device_type"] = "cyd-esp32";
+  requestDoc["mac_address"] = getChipIdString;
+  requestDoc["request_type"] = "mqtt_config";
+  
+  // TODO: Add additional device info as needed
+  // requestDoc["firmware_version"] = "1.0.0";
+  // requestDoc["capabilities"] = JsonArray(["display", "touch", "wifi"]);
+
+  String requestJson;
+  serializeJson(requestDoc, requestJson);
+  
+  Serial.println("Sending provisioning request: " + requestJson);
+
+  // Send HTTP-like request to provisioning service
+  provisionClient.println("POST /provision HTTP/1.1");
+  provisionClient.println("Host: " + provisionIP);
+  provisionClient.println("Content-Type: application/json");
+  provisionClient.println("Content-Length: " + String(requestJson.length()));
+  provisionClient.println();
+  provisionClient.println(requestJson);
+
+  // Wait for response
+  unsigned long timeout = millis() + 5000; // 5 second timeout
+  while (!provisionClient.available() && millis() < timeout)
+  {
+    delay(10);
+  }
+
+  if (!provisionClient.available())
+  {
+    Serial.println("Provisioning service timeout");
+    provisionClient.stop();
+    lv_label_set_text(objects.label_mqtt_connection_state, "Provisioning timeout");
+    return false;
+  }
+
+  // Read HTTP response headers (skip them)
+  String line;
+  bool headersEnded = false;
+  while (provisionClient.available() && !headersEnded)
+  {
+    line = provisionClient.readStringUntil('\n');
+    if (line == "\r")
+    {
+      headersEnded = true;
+    }
+  }
+
+  // Read JSON response body
+  String responseJson = provisionClient.readString();
+  provisionClient.stop();
+
+  Serial.println("Provisioning response: " + responseJson);
+
+  // Parse JSON response
+  JsonDocument responseDoc;
+  DeserializationError error = deserializeJson(responseDoc, responseJson);
+  
+  if (error)
+  {
+    Serial.println("Failed to parse provisioning response: " + String(error.c_str()));
+    lv_label_set_text(objects.label_mqtt_connection_state, "Invalid response");
+    return false;
+  }
+
+  // Extract MQTT configuration
+  if (responseDoc["status"] == "success")
+  {
+    mqtt_server = responseDoc["mqtt_broker"].as<String>();
+    mqtt_port = responseDoc["mqtt_port"].as<int>();
+    mqtt_username = responseDoc["mqtt_username"].as<String>();
+    mqtt_password = responseDoc["mqtt_password"].as<String>();
+    
+    mqtt_broker_found = true;
+
+    Serial.printf("Provisioned MQTT broker: %s:%d\n", mqtt_server.c_str(), mqtt_port);
+    Serial.printf("MQTT credentials: %s / %s\n", mqtt_username.c_str(), mqtt_password.c_str());
+    
+    String status = "Provisioned: " + mqtt_server + ":" + String(mqtt_port);
+    lv_label_set_text(objects.label_mqtt_connection_state, status.c_str());
+    return true;
   }
   else
   {
-    Serial.printf("Found %d MQTT service(s)\n", n);
-    for (int i = 0; i < n; ++i)
-    {
-      Serial.printf("  %d: %s.local:%d\n", i, MDNS.hostname(i).c_str(), MDNS.port(i));
-
-      // Use the first MQTT service found
-      if (i == 0)
-      {
-        mqtt_server = MDNS.IP(i).toString(); // Get IP address
-        mqtt_port = MDNS.port(i);
-        mqtt_broker_found = true;
-
-        Serial.printf("Using MQTT broker: %s:%d\n", mqtt_server.c_str(), mqtt_port);
-        String status = "Found: " + mqtt_server + ":" + String(mqtt_port);
-        lv_label_set_text(objects.label_mqtt_connection_state, status.c_str());
-        return true;
-      }
-    }
+    String error = responseDoc["error"] | "Unknown error";
+    Serial.println("Provisioning failed: " + error);
+    lv_label_set_text(objects.label_mqtt_connection_state, ("Error: " + error).c_str());
+    return false;
   }
-  return false;
 }
 
 void callback(char *topic, byte *payload, unsigned int length)
@@ -180,9 +273,14 @@ void reconnect()
 
   while (!client.connected())
   {
-    if (client.connect("ESP32-CYD", MQTT_USER, MQTT_PASSWORD))
+    // Use provisioned credentials if available, otherwise fall back to secrets.h
+    const char* username = mqtt_username.length() > 0 ? mqtt_username.c_str() : MQTT_USER;
+    const char* password = mqtt_password.length() > 0 ? mqtt_password.c_str() : MQTT_PASSWORD;
+    
+    if (client.connect("ESP32-CYD", username, password))
     {
       client.subscribe(mqtt_topic);
+      Serial.println("Connected to MQTT with provisioned credentials");
     }
     else
     {

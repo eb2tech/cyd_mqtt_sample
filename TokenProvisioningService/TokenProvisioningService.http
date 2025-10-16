@@ -1,0 +1,48 @@
+### Valid provisioning request
+POST http://localhost:5000/provision
+Content-Type: application/json
+
+{
+  "device_id": "device-001",
+  "device_type": "cyd-esp32",
+  "mac_address": "AA:BB:CC:DD:EE:FF",
+  "request_type": "mqtt_config"
+}
+
+### Missing required fields (expected 400)
+POST http://localhost:5000/provision
+Content-Type: application/json
+
+{
+  "device_id": "",
+  "device_type": "cyd-esp32",
+  "mac_address": "",
+  "request_type": "mqtt_config"
+}
+
+### Unsupported request_type (expected 406)
+POST http://localhost:5000/provision
+Content-Type: application/json
+
+{
+  "device_id": "device-002",
+  "device_type": "cyd-esp32",
+  "mac_address": "11:22:33:44:55:66",
+  "request_type": "unknown_type"
+}
+
+### Invalid JSON (expected 400)
+POST http://localhost:5000/provision
+Content-Type: application/json
+
+{ "device_id": "device-003", 
+  "device_type": "cyd-esp32", 
+  "mac_address": "00:11:22:33:44:55", 
+  "reques_type": "mqtt_config"
+}
+
+### curl example (valid request)
+# Run this from a terminal (adjust port/host if your app binds elsewhere)
+# curl -v -X POST http://localhost:5000/provision \
+#   -H "Content-Type: application/json" \
+#   -d '{"device_id":"device-001","device_type":"cyd-esp32","mac_address":"AA:BB:CC:DD:EE:FF","request_type":"mqtt_config"}'
