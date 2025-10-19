@@ -10,6 +10,12 @@ builder.Services.AddHostedService<MdnsAdvertiserService>();
 builder.Services.Configure<MqttBrokerOptions>(builder.Configuration.GetSection(nameof(MqttBrokerOptions)));
 builder.Services.Configure<TokenProvisioningOptions>(builder.Configuration.GetSection(nameof(TokenProvisioningOptions)));
 
+builder.WebHost.ConfigureKestrel((context, options) =>
+{
+    var port = context.Configuration.GetValue<int>("TokenProvisioningOptions:Port", 12345);
+    options.ListenAnyIP(port); // listen on 0.0.0.0:port for IPv4/IPv6
+});
+
 var app = builder.Build();
 
 app.MapPost("/provision", async (HttpContext context, ITokenService tokenService,
@@ -81,6 +87,9 @@ app.MapPost("/provision", async (HttpContext context, ITokenService tokenService
                            mqtt_password = token
                        };
         context.Response.ContentType = "application/json";
+
+        logger.LogDebug("Responding with broker {Broker}:{BrokerPort}", response.mqtt_broker, response.mqtt_port);
+
         await context.Response.WriteAsJsonAsync(response, context.RequestAborted);
     }
     catch (JsonException jex)
