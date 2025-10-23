@@ -9,9 +9,8 @@ var rnd = new Random();
 
 using var mqttClient = mqttFactory.CreateMqttClient();
 var mqttClientOptions = new MqttClientOptionsBuilder()
-								.WithTcpServer("pimqtt.local")
+								.WithTcpServer("pikiosk.local")
 								.WithClientId("Linqpad")
-								.WithCredentials("cyd", "cyd")
 								.Build();
 
 await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
@@ -24,9 +23,9 @@ for (var i = 0; i < 100; ++i)
 		.WithTopic("home/livingroom/temperature")
 		.WithPayload(temp.ToString())
 		.Build();
-	
+
 	await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
-	Console.WriteLine("Published..." + temp);
+	Console.WriteLine($"Published {i}... {temp}");
 
 	await Task.Delay(TimeSpan.FromSeconds(rnd.NextSingle()));
 }

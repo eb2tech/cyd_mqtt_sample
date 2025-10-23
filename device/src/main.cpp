@@ -4,8 +4,10 @@
 #include <TFT_eSPI.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
+#include <vector>
 #include <lvgl.h>
 #include "ui/ui.h"
+#include "MQTTDispatcher.h"
 #include "secrets.h"
 
 #define XPT2046_IRQ 36  // T_IRQ
@@ -26,6 +28,7 @@ String mqtt_username = ""; // Will be set by provisioning service
 String mqtt_password = ""; // Will be set by provisioning service
 bool mqtt_broker_found = false;
 const char *mqtt_topic = "home/livingroom/temperature";
+const char *mqtt_ha_topic = "homeassistant/sensor/#";
 
 // Display
 // Display configuration - matches EEZ Studio project settings
@@ -37,6 +40,7 @@ TFT_eSPI tft = TFT_eSPI(); // Uses settings from User_Setup.h
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+MQTTDispatcher mqttDispatcher;
 
 // Device identification functions
 String getDeviceIdentifier()
@@ -316,16 +320,71 @@ bool discover_mqtt_broker()
   }
 }
 
+void test_handler(const std::string& topic, const std::string& message)
+{
+  std::string newMessage = message + std::string(" °C");
+  lv_label_set_text(objects.label_temperature, newMessage.c_str());
+}
+
+// Simple split function similar to boost::split
+std::vector<std::string> split(const std::string& str, char delimiter)
+{
+  std::vector<std::string> tokens;
+  size_t start = 0;
+  size_t end = 0;
+  
+  while ((end = str.find(delimiter, start)) != std::string::npos)
+  {
+    if (end != start) // Skip empty tokens
+    {
+      tokens.push_back(str.substr(start, end - start));
+    }
+    start = end + 1;
+  }
+  
+  // Add the last token
+  if (start < str.length())
+  {
+    tokens.push_back(str.substr(start));
+  }
+  
+  return tokens;
+}
+
+void ha_handler(const std::string& topic, const std::string& message)
+{
+  if (topic.find("temperature") != std::string::npos && topic.rfind("state") == topic.length() - 5)
+  {
+    std::string newMessage = message + std::string(" °F");
+    lv_label_set_text(objects.label_temperature, newMessage.c_str());
+    
+    // Split topic by '/' and extract the third segment (index 2)
+    std::vector<std::string> topicParts = split(topic, '/');
+    std::string topicSegment = "";
+    
+    if (topicParts.size() > 2)
+    {
+      topicSegment = topicParts[2]; // Extract 'c' from "a/b/c/d"
+    }
+    else
+    {
+      topicSegment = topic; // Fallback to full topic
+    }
+    
+    lv_label_set_text(objects.label_mqtt_topic, topicSegment.c_str());
+  }
+}
+
 void callback(char *topic, byte *payload, unsigned int length)
 {
-  String message(payload, length);
-  message = message + "°C";
+  std::string message((char*)payload, length);
 
-  Serial.println("Message arrived: " + message);
-  if (String(topic) == mqtt_topic)
-  {
-    lv_label_set_text(objects.label_temperature, message.c_str());
-  }
+  Serial.print("Message arrived: ");
+  Serial.print(message.c_str());
+  Serial.print(" on topic: ");
+  Serial.println(topic);
+
+  mqttDispatcher.dispatch(topic, message);
 }
 
 void reconnect()
@@ -354,6 +413,7 @@ void reconnect()
     if (client.connect("ESP32-CYD", username, password))
     {
       client.subscribe(mqtt_topic);
+      client.subscribe(mqtt_ha_topic);
       Serial.println("Connected to MQTT with provisioned credentials");
     }
     else
@@ -376,6 +436,9 @@ void setup_mqtt()
     client.setServer(mqtt_server.c_str(), mqtt_port);
     client.setCallback(callback);
     Serial.println("MQTT client configured with discovered broker");
+
+    mqttDispatcher.registerHandler(mqtt_topic, test_handler);
+    mqttDispatcher.registerHandler(mqtt_ha_topic, ha_handler);
   }
   else
   {

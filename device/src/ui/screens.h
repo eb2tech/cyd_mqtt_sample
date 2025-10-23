@@ -15,6 +15,8 @@ typedef struct _objects_t {
     lv_obj_t *label_wifi_connected_state;
     lv_obj_t *obj2;
     lv_obj_t *label_temperature;
+    lv_obj_t *obj3;
+    lv_obj_t *label_mqtt_topic;
 } objects_t;
 
 extern objects_t objects;

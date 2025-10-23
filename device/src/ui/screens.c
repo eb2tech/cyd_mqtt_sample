@@ -25,7 +25,7 @@ void create_screen_main() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj0 = obj;
-            lv_obj_set_pos(obj, 0, 208);
+            lv_obj_set_pos(obj, 0, 191);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "MQTT");
@@ -34,7 +34,7 @@ void create_screen_main() {
             // label_mqtt_connection_state
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.label_mqtt_connection_state = obj;
-            lv_obj_set_pos(obj, 55, 208);
+            lv_obj_set_pos(obj, 55, 191);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "Not Connected");
@@ -42,7 +42,7 @@ void create_screen_main() {
         {
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.obj1 = obj;
-            lv_obj_set_pos(obj, 0, 182);
+            lv_obj_set_pos(obj, 0, 165);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "Wifi");
@@ -51,7 +51,7 @@ void create_screen_main() {
             // label_wifi_connected_state
             lv_obj_t *obj = lv_label_create(parent_obj);
             objects.label_wifi_connected_state = obj;
-            lv_obj_set_pos(obj, 55, 182);
+            lv_obj_set_pos(obj, 55, 165);
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_label_set_text(obj, "Not Connected");
@@ -73,7 +73,25 @@ void create_screen_main() {
             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
             lv_obj_set_style_text_font(obj, &lv_font_montserrat_20, LV_PART_MAIN | LV_STATE_DEFAULT);
             lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
-            lv_label_set_text(obj, "Text");
+            lv_label_set_text(obj, "N/A");
+        }
+        {
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.obj3 = obj;
+            lv_obj_set_pos(obj, 0, 216);
+            lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "Topic");
+        }
+        {
+            // label_mqtt_topic
+            lv_obj_t *obj = lv_label_create(parent_obj);
+            objects.label_mqtt_topic = obj;
+            lv_obj_set_pos(obj, 55, 216);
+            lv_obj_set_size(obj, 256, LV_SIZE_CONTENT);
+            lv_label_set_long_mode(obj, LV_LABEL_LONG_DOT);
+            lv_obj_set_style_text_color(obj, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_label_set_text(obj, "Not Connected");
         }
     }
     
