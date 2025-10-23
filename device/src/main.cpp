@@ -375,7 +375,7 @@ void ha_handler(const std::string& topic, const std::string& message)
   }
 }
 
-void callback(char *topic, byte *payload, unsigned int length)
+void mqtt_callback(char *topic, byte *payload, unsigned int length)
 {
   std::string message((char*)payload, length);
 
@@ -399,7 +399,7 @@ void reconnect()
     }
     // Reconfigure client with newly discovered broker
     client.setServer(mqtt_server.c_str(), mqtt_port);
-    client.setCallback(callback);
+    client.setCallback(mqtt_callback);
   }
 
   Serial.println("Reconnecting to MQTT...");
@@ -434,7 +434,7 @@ void setup_mqtt()
   if (discover_mqtt_broker())
   {
     client.setServer(mqtt_server.c_str(), mqtt_port);
-    client.setCallback(callback);
+    client.setCallback(mqtt_callback);
     Serial.println("MQTT client configured with discovered broker");
 
     mqttDispatcher.registerHandler(mqtt_topic, test_handler);
@@ -526,7 +526,7 @@ void loop()
       if (mqtt_broker_found)
       {
         client.setServer(mqtt_server.c_str(), mqtt_port);
-        client.setCallback(callback);
+        client.setCallback(mqtt_callback);
       }
     }
   }
