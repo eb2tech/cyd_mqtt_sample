@@ -4,6 +4,7 @@
 #include <TFT_eSPI.h>
 #include <ESPmDNS.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 #include <vector>
 #include <lvgl.h>
 #include "ui/ui.h"
@@ -120,41 +121,6 @@ void setup_mdns()
   Serial.println("mDNS responder started");
 }
 
-// Helper function to parse chunked HTTP response
-String parseChunkedResponse(String chunkedData)
-{
-  String result = "";
-  int pos = 0;
-  
-  while (pos < chunkedData.length())
-  {
-    // Find the chunk size (hex number before \r\n)
-    int crlfPos = chunkedData.indexOf('\n', pos);
-    if (crlfPos == -1) break;
-    
-    String chunkSizeStr = chunkedData.substring(pos, crlfPos);
-    chunkSizeStr.trim(); // Remove \r and whitespace
-    
-    // Convert hex chunk size to integer
-    long chunkSize = strtol(chunkSizeStr.c_str(), nullptr, 16);
-    
-    if (chunkSize == 0) break; // End of chunks
-    
-    // Extract the chunk data
-    pos = crlfPos + 1;
-    if (pos + chunkSize > chunkedData.length()) break;
-    
-    result += chunkedData.substring(pos, pos + chunkSize);
-    pos += chunkSize;
-    
-    // Skip the trailing \r\n after chunk data
-    if (pos < chunkedData.length() && chunkedData.charAt(pos) == '\r') pos++;
-    if (pos < chunkedData.length() && chunkedData.charAt(pos) == '\n') pos++;
-  }
-  
-  return result;
-}
-
 bool discover_mqtt_broker()
 {
   Serial.println("Discovering provisioning service via mDNS...");
@@ -199,89 +165,32 @@ bool discover_mqtt_broker()
   
   Serial.println("Sending provisioning request: " + requestJson);
 
-  // Send HTTP-like request to provisioning service
-  provisionClient.println("POST /provision HTTP/1.1");
-  provisionClient.println("Host: " + provisionIP);
-  provisionClient.println("Content-Type: application/json");
-  provisionClient.println("Content-Length: " + String(requestJson.length()));
-  provisionClient.println();
-  provisionClient.println(requestJson);
-
-  // Wait for response
-  unsigned long timeout = millis() + 5000; // 5 second timeout
-  while (!provisionClient.available() && millis() < timeout)
+  // Use HTTPClient for much simpler HTTP handling
+  HTTPClient http;
+  String url = "http://" + provisionIP + ":" + String(provisionPort) + "/provision";
+  
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(5000); // 5 second timeout
+  
+  // Send POST request
+  int httpResponseCode = http.POST(requestJson);
+  
+  if (httpResponseCode <= 0 || httpResponseCode != HTTP_CODE_OK)
   {
-    delay(10);
-  }
-
-  if (!provisionClient.available())
-  {
-    Serial.println("Provisioning service timeout");
-    provisionClient.stop();
-    lv_label_set_text(objects.label_mqtt_connection_state, "Provisioning timeout");
+    // HTTPClient error (connection, timeout, etc.)
+    Serial.printf("HTTPClient error: %s (code: %d)\n", http.errorToString(httpResponseCode).c_str(), httpResponseCode);
+    lv_label_set_text(objects.label_mqtt_connection_state, ("Connection error " + String(httpResponseCode)).c_str());
+    http.end();
     return false;
   }
-
-  // Read complete HTTP response
-  String fullResponse = "";
-  while (provisionClient.available())
-  {
-    fullResponse += provisionClient.readString();
-    delay(10); // Small delay to ensure all data is received
-  }
-  provisionClient.stop();
-
-  Serial.println("Full HTTP response:");
-  Serial.println(fullResponse);
-
-  // Find the JSON body (after the double CRLF that ends headers)
-  String responseJson = "";
-  int bodyStart = fullResponse.indexOf("\r\n\r\n");
-  if (bodyStart != -1)
-  {
-    responseJson = fullResponse.substring(bodyStart + 4);
-  }
-  else
-  {
-    // Try alternative line endings
-    bodyStart = fullResponse.indexOf("\n\n");
-    if (bodyStart != -1)
-    {
-      responseJson = fullResponse.substring(bodyStart + 2);
-    }
-    else
-    {
-      Serial.println("Could not find HTTP body separator");
-      lv_label_set_text(objects.label_mqtt_connection_state, "Invalid HTTP response");
-      return false;
-    }
-  }
-
-  // Handle chunked encoding - remove chunk size indicators
-  if (fullResponse.indexOf("Transfer-Encoding: chunked") != -1)
-  {
-    Serial.println("Handling chunked response");
-    responseJson = parseChunkedResponse(responseJson);
-  }
-
-  // Clean up any remaining whitespace or control characters
-  responseJson.trim();
-
-  Serial.println("Extracted JSON response:");
-  Serial.println("Length: " + String(responseJson.length()));
-  Serial.println("Content: " + responseJson);
   
-  // Additional cleanup - remove any non-printable characters at start/end
-  while (responseJson.length() > 0 && (responseJson.charAt(0) < 32 || responseJson.charAt(0) > 126))
-  {
-    responseJson = responseJson.substring(1);
-  }
-  while (responseJson.length() > 0 && (responseJson.charAt(responseJson.length()-1) < 32))
-  {
-    responseJson = responseJson.substring(0, responseJson.length()-1);
-  }
+  // Get response
+  String responseJson = http.getString();
+  http.end();
   
-  Serial.println("Cleaned JSON: " + responseJson);
+  Serial.printf("HTTP Response Code: %d\n", httpResponseCode);
+  Serial.println("Response: " + responseJson);
 
   // Parse JSON response
   JsonDocument responseDoc;
