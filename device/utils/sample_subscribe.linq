@@ -10,9 +10,8 @@ var mqttFactory = new MqttClientFactory();
 
 using var mqttClient = mqttFactory.CreateMqttClient();
 var mqttClientOptions = new MqttClientOptionsBuilder()
-								.WithTcpServer("homeassistant2.local")
+								.WithTcpServer("pikiosk.local")
 								.WithClientId("Linqpad")
-								.WithCredentials("cyd", "cyd")
 								.Build();
 
 mqttClient.ApplicationMessageReceivedAsync += e =>
@@ -25,7 +24,7 @@ await mqttClient.ConnectAsync(mqttClientOptions, QueryCancelToken);
 Console.WriteLine("Connected...");
 
 var mqttSubscribeOptions = mqttFactory.CreateSubscribeOptionsBuilder()
-									  .WithTopicFilter("homeassistant/sensor/#")
+									  .WithTopicFilter("homeassistant/#")
 									  .Build();
 									  
 await mqttClient.SubscribeAsync(mqttSubscribeOptions, QueryCancelToken);
