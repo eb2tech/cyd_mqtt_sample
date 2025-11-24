@@ -1,6 +1,4 @@
-﻿using System.Text.Json;
-using Microsoft.Extensions.Options;
-using TokenProvisioningService;
+﻿using TokenProvisioningService;
 
 var builder = WebApplication.CreateBuilder(args);
 
