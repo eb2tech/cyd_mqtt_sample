@@ -9,8 +9,10 @@ var rnd = new Random();
 
 using var mqttClient = mqttFactory.CreateMqttClient();
 var mqttClientOptions = new MqttClientOptionsBuilder()
-								.WithTcpServer("pikiosk.local")
+								.WithTcpServer("enterprise2u.local", 1883)
 								.WithClientId("Linqpad")
+								.WithCredentials(Util.GetPassword("picollect.nats.username"), Util.GetPassword("picollect.nats.password"))
+								.WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V311)
 								.Build();
 
 await mqttClient.ConnectAsync(mqttClientOptions, CancellationToken.None);
@@ -27,7 +29,7 @@ for (var i = 0; i < 100; ++i)
 	await mqttClient.PublishAsync(applicationMessage, CancellationToken.None);
 	Console.WriteLine($"Published {i}... {temp}");
 
-	await Task.Delay(TimeSpan.FromSeconds(rnd.NextSingle()));
+	await Task.Delay(TimeSpan.FromMilliseconds(rnd.Next(2, 1000)));
 }
 
 var easterEggMessage = new MqttApplicationMessageBuilder()
